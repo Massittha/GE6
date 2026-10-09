@@ -89,7 +89,7 @@ def main() -> None:
     print("daily_balance_sheet saved successfully.")
     print("#########################################")
 
-    official_accs = list(df_transfers.query(f'From == {SOURCE_ACC}')['To'].unique())
+    official_accs = list(df_transfers.query(f'From == "{SOURCE_ACC}"')['To'].unique())
     ex = official_accs + [SOURCE_ACC, VOTE_ACC, MINT]
 
     daily_overview = create_daily_overview(daily_balance_sheet,official_accs,ex)
