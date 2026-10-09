@@ -20,7 +20,7 @@ st.title("GE6 On-chain Dashboard")
 st.caption("Unofficial community tracker · On-chain data")
 
 # Load processed data
-DATA_PATH = Path("data/daily_overview.parquet")
+DATA_PATH = Path("data/persist/daily_overview.parquet")
 
 @st.cache_data
 def load_data():
