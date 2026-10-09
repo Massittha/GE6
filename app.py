@@ -124,11 +124,46 @@ st.plotly_chart(fig_voting, use_container_width=True)
 
 # Show underlying data
 # Show daily data: latest date first
-with st.expander("View daily data", expanded=True):
-    display_df = df.sort_values("Date", ascending=False)
+# with st.expander("View daily data", expanded=True):
+#     display_df = df.sort_values("Date", ascending=False)
+
+#     st.dataframe(
+#         display_df,
+#         use_container_width=True,
+#         hide_index=True
+#     )
+
+
+with st.expander("View daily data", expanded = True):
+    display_df = df.sort_values("Date", ascending=False).copy()
+
+    # Show date only, without time
+    display_df["Date"] = pd.to_datetime(
+        display_df["Date"]
+    ).dt.strftime("%Y-%m-%d")
+
+    # Format numeric columns with thousands separators
+    numeric_cols = [
+        "token_in_circulation",
+        "accum_vote_amount",
+        "token_unspent",
+    ]
+
+    for col in numeric_cols:
+        display_df[col] = display_df[col].map(
+            lambda x: f"{x:,.3f}".rstrip("0").rstrip(".")
+            if pd.notna(x) else ""
+        )
+
+    # Rename columns for readability
+    display_df = display_df.rename(columns={
+        "token_in_circulation": "Token in circulation",
+        "accum_vote_amount": "Used for voting",
+        "token_unspent": "Not deployed for voting",
+    })
 
     st.dataframe(
         display_df,
         use_container_width=True,
-        hide_index=True
+        hide_index=True,
     )
