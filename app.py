@@ -3,6 +3,7 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 from pathlib import Path
+import json
 
 st.set_page_config(
     page_title="GE6 On-chain Dashboard",
@@ -22,6 +23,13 @@ st.caption("Unofficial community tracker · On-chain data")
 # Load processed data
 DATA_PATH = Path("data/persist/daily_overview.parquet")
 
+STATUS_PATH = (
+    Path(__file__).resolve().parent
+    / "data"
+    / "persist"
+    / "pipeline_status.json"
+)
+
 @st.cache_data
 def load_data():
     df = pd.read_parquet(DATA_PATH)
@@ -29,6 +37,7 @@ def load_data():
     return df.sort_values("Date").reset_index(drop=True)
 
 df = load_data()
+
 
 # Latest available snapshot
 latest = df.iloc[-1]
@@ -38,6 +47,29 @@ voted = latest["accum_vote_amount"]
 unspent = latest["token_unspent"]
 
 st.caption(f"Latest snapshot: {latest['Date']:%d %b %Y}")
+
+if STATUS_PATH.exists():
+    try:
+        with STATUS_PATH.open("r", encoding="utf-8") as f:
+            pipeline_status = json.load(f)
+
+        if pipeline_status.get("status") == "success":
+            last_run = pd.to_datetime(
+                pipeline_status["last_successful_run"]
+            )
+
+            st.caption(
+                "Last successful data update: "
+                f"{last_run.strftime('%d %b %Y, %H:%M:%S')} ICT"
+            )
+            
+        else:
+            st.warning("Pipeline has not completed successfully.")
+
+    except (OSError, ValueError, KeyError) as e:
+        st.warning(f"Could not read pipeline status: {e}")
+else:
+    st.caption("Last successful data update: Not available yet")
 
 # Overview metrics
 c1, c2, c3 = st.columns(3)
