@@ -79,9 +79,7 @@ c1.metric(
     f"{circulation:,.0f}",
 
 )
-c1.caption(
-    "GE6 from sales only; excludes BNK governance token exchanges."
-)
+
 
 c2.metric(
     "Used for voting",
