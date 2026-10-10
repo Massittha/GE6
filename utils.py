@@ -3,14 +3,16 @@ import pandas as pd
 import time
 
 
-def clean_and_deduplicate(dataframe, key_column):
+def clean_and_deduplicate(dataframe, key_columns):
     """
     Removes duplicate entries based on a unique key column (e.g., 'Tx Hash' or 'Address').
     """
+    if isinstance(key_columns,str):
+        key_columns = [key_columns]
     if dataframe is None or dataframe.empty:
         return pd.DataFrame(columns=['Tx Hash', 'Block Hash', 'Timestamp', 'From', 'To', 'Value', 'Raw Value', 'Type'])
     initial_count = len(dataframe)
-    deduped_df = dataframe.drop_duplicates(subset=[key_column], keep='first').reset_index(drop=True)
+    deduped_df = dataframe.drop_duplicates(subset=key_columns, keep='first').reset_index(drop=True)
     print(f"Removed {initial_count - len(deduped_df)} duplicate rows. Total rows now: {len(deduped_df)}.")
     return deduped_df
 
@@ -29,7 +31,7 @@ def fetch_incremental_transfers(existing_df_transfers=None, token_address='0x2f5
 
     if is_from_scratch:
         print("No pre-existing transfers detected. STARTING TRANSFER SCRAPING FROM SCRATCH...")
-        existing_df_transfers = pd.DataFrame(columns=['Tx Hash', 'Block Hash', 'Timestamp','Method','From', 'To', 'Value', 'Raw Value', 'Type'])
+        existing_df_transfers = pd.DataFrame(columns=['Tx Hash', 'Block Hash', 'Timestamp','Method','From', 'To', 'Value', 'Raw Value', 'Type', 'log_index'])
     else:
         print(f"Incremental sync detected. Initializing lookback buffer check with safety overlap depth of {safety_overlap}...")
 
@@ -91,7 +93,8 @@ def fetch_incremental_transfers(existing_df_transfers=None, token_address='0x2f5
                 'To': to_addr,
                 'Value': formatted_value,
                 'Raw Value': raw_value,
-                'Type': item.get('type')
+                'Type': item.get('type'),
+                'log_index': item.get('log_index')
             })
 
         if stop_reached:
@@ -110,7 +113,7 @@ def fetch_incremental_transfers(existing_df_transfers=None, token_address='0x2f5
         new_df = pd.DataFrame(new_transfers)
         print(f"Successfully retrieved {len(new_df)} new transfers across {page_count} pages.")
         combined_df = pd.concat([new_df, existing_df_transfers], ignore_index=True)
-        return  clean_and_deduplicate(combined_df, 'Tx Hash')
+        return  clean_and_deduplicate(combined_df, ['Tx Hash','log_index'])
     else:
         print("No new transfers found. System is up to date.")
         return existing_df_transfers
