@@ -5,8 +5,7 @@ on:
   # Run every day at 06:15 Thailand time (UTC+7)
   schedule:
     - cron: "*/30 * * * *"
-
-  # Allow manual runs from GitHub Actions
+    
   workflow_dispatch:
 
 permissions:
