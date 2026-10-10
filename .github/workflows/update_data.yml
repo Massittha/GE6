@@ -4,7 +4,7 @@ name: Update GE6 Data
 on:
   # Run every day at 06:15 Thailand time (UTC+7)
   schedule:
-    - cron: "15,45 * * * *"
+    - cron: "18,48 * * * *"
 
   workflow_dispatch:
 
