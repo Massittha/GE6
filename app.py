@@ -76,7 +76,8 @@ c1, c2, c3 = st.columns(3)
 
 c1.metric(
     "Token in circulation",
-    f"{circulation:,.0f}"
+    f"{circulation:,.0f}",
+    f"GE6 from sales only; excludes BNK governance token exchanges."
 )
 
 c2.metric(
