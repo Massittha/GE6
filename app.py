@@ -62,7 +62,7 @@ if STATUS_PATH.exists():
                 "Last successful data update: "
                 f"{last_run.strftime('%d %b %Y, %H:%M:%S')} ICT"
             )
-            
+
         else:
             st.warning("Pipeline has not completed successfully.")
 
@@ -81,18 +81,20 @@ c1.metric(
 
 c2.metric(
     "Used for voting",
-    f"{voted:,.0f}",
+    f"{voted:,.2f}",
     f"{voted / circulation:.1%} of circulation"
     if pd.notna(voted) and circulation > 0
-    else None
+    else None,
+    delta_arrow="off"
 )
 
 c3.metric(
     "Not deployed for voting",
-    f"{unspent:,.0f}",
+    f"{unspent:,.2f}",
     f"{unspent / circulation:.1%} of circulation"
     if pd.notna(unspent) and circulation > 0
-    else None
+    else None,
+    delta_arrow="off"
 )
 
 st.divider()
