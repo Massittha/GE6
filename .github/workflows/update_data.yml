@@ -79,6 +79,7 @@ jobs:
           git add data/curate/GE6_txn_processed.parquet
           git add data/curate/daily_balance_sheet.parquet
           git add data/persist/daily_overview.parquet
+          git add data/persist/pipeline_status.json
 
           if ! git diff --cached --quiet; then
             git commit -m "chore: update GE6 data"
