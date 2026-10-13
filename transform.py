@@ -91,7 +91,7 @@ def create_top_voters_all_time(daily_balance_sheet,ex):
     top_voters_all_time = top_voters_all_time.sort_values(by=['Date','accum_vote'],ascending=[True,False])
     top_voters_all_time['ranking_by_vote'] = top_voters_all_time.groupby('Date')['accum_vote'].rank(method='dense',ascending=False).astype(int)
     top_voters_all_time['ranking_by_potential_vote'] = top_voters_all_time.groupby('Date')['potential_vote_amount'].rank(method='dense',ascending=False).astype(int)
-    previous_date_ranking_by_vote = top_voters_all_time[['Date','From','ranking_by_vote']].copy().rename(columns={'ranking_by_vote':'previous_date_raking',
+    previous_date_ranking_by_vote = top_voters_all_time[['Date','From','ranking_by_vote']].copy().rename(columns={'ranking_by_vote':'previous_date_ranking',
                                                                                                 })
     previous_date_ranking_by_vote['Date'] = previous_date_ranking_by_vote['Date'] + pd.Timedelta(days=1)
 
