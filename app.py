@@ -730,42 +730,35 @@ def short_wallet(address):
 
 
 def render_podium(df, wallet_col, amount_col, rank_col):
-    """Render a mobile-friendly top-three ranking.
-
-    On narrow screens, cards stack in ranking order (1, 2, 3).
-    On wider screens, the top three are shown side by side.
-    """
+    """Render a mobile-friendly top-three ranking using Streamlit HTML rendering."""
     if df.empty:
         return
 
     top3 = df.sort_values(rank_col).head(3).copy()
     medals = {1: "🥇", 2: "🥈", 3: "🥉"}
-
-    # Responsive HTML: avoid the desktop-style 2-1-3 podium on mobile.
     cards = []
+
     for _, row in top3.iterrows():
         rank = int(row[rank_col])
         wallet = str(row[wallet_col])
         wallet_short = html.escape(short_wallet(wallet))
-        wallet_full = html.escape(wallet)
         try:
             amount = f"{float(row[amount_col]):,.3f}".rstrip("0").rstrip(".")
         except (TypeError, ValueError):
             amount = html.escape(str(row[amount_col]))
 
-        cards.append(
-            f"""
+        cards.append(f"""
             <div class="ge6-rank-card">
                 <div class="ge6-rank-medal">{medals.get(rank, "🏅")}</div>
                 <div class="ge6-rank-number">#{rank}</div>
                 <div class="ge6-rank-wallet">{wallet_short}</div>
                 <div class="ge6-rank-amount">{amount}</div>
             </div>
-            """
-        )
+        """)
 
-    st.markdown(
-        """
+    # st.html renders HTML directly; it avoids Markdown interpreting the markup
+    # as literal code in some app/runtime combinations.
+    st.html("""
         <style>
         .ge6-podium {
             display: grid;
@@ -775,6 +768,7 @@ def render_podium(df, wallet_col, amount_col, rank_col):
         }
         .ge6-rank-card {
             min-width: 0;
+            box-sizing: border-box;
             text-align: center;
             padding: 18px 8px;
             border: 1px solid rgba(128,128,128,.35);
@@ -797,7 +791,6 @@ def render_podium(df, wallet_col, amount_col, rank_col):
                 gap: 8px;
                 text-align: left;
                 padding: 12px;
-                min-height: 0;
             }
             .ge6-rank-medal { font-size: 23px; }
             .ge6-rank-number { font-size: 16px; margin: 0; }
@@ -805,16 +798,8 @@ def render_podium(df, wallet_col, amount_col, rank_col):
             .ge6-rank-amount { font-size: 15px; text-align: right; }
         }
         </style>
-        """,
-        unsafe_allow_html=True,
-    )
+    """ + '<div class="ge6-podium">' + "".join(cards) + "</div>")
 
-    st.markdown(
-        '<div class="ge6-podium">' + "".join(cards) + "</div>",
-        unsafe_allow_html=True,
-    )
-
-    # Keep full addresses available for copying without widening the cards.
     with st.expander("Show full wallet addresses"):
         for _, row in top3.iterrows():
             st.caption(f"Rank {int(row[rank_col])}")
