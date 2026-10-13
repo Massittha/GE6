@@ -249,8 +249,8 @@ with st.expander("View daily top voters", expanded=True):
             ).rename(columns={"ranking":"Ranking",
                               "From":"Wallet Address",
                               "out_bound_vote_amount":"Vote Amount (Sum By Date)"})[["Date",
-                                                                       "Wallet Address",
                                                                        "Ranking",
+                                                                       "Wallet Address",
                                                                        "Vote Amount (Sum By Date)"]]
 
         daily_voters = format_numeric_columns(daily_voters)
