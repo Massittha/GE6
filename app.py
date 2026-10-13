@@ -5,6 +5,20 @@ import plotly.express as px
 from pathlib import Path
 import json
 
+def format_numeric_columns(df, exclude=None):
+    exclude = exclude or ["Date", "From"]
+
+    df = df.copy()
+
+    for col in df.select_dtypes(include="number").columns:
+        if col not in exclude:
+            df[col] = df[col].map(
+                lambda x: f"{x:,.3f}".rstrip("0").rstrip(".")
+                if pd.notna(x) else ""
+            )
+
+    return df
+
 st.set_page_config(
     page_title="GE6 On-chain Dashboard",
     page_icon="📊",
@@ -170,7 +184,7 @@ st.plotly_chart(fig_voting, use_container_width=True)
 #     )
 
 
-with st.expander("View daily data", expanded = True):
+with st.expander("View daily overview data", expanded = True):
     display_df = df.sort_values("Date", ascending=False).copy()
 
     # Show date only, without time
@@ -179,17 +193,18 @@ with st.expander("View daily data", expanded = True):
     ).dt.strftime("%Y-%m-%d")
 
     # Format numeric columns with thousands separators
-    numeric_cols = [
-        "token_in_circulation",
-        "accum_vote_amount",
-        "token_unspent",
-    ]
+    # numeric_cols = [
+    #     "token_in_circulation",
+    #     "accum_vote_amount",
+    #     "token_unspent",
+    # ]
 
-    for col in numeric_cols:
-        display_df[col] = display_df[col].map(
-            lambda x: f"{x:,.3f}".rstrip("0").rstrip(".")
-            if pd.notna(x) else ""
-        )
+    # for col in numeric_cols:
+    #     display_df[col] = display_df[col].map(
+    #         lambda x: f"{x:,.3f}".rstrip("0").rstrip(".")
+    #         if pd.notna(x) else ""
+    #     )
+    display_df = format_numeric_columns(display_df)
 
     # Rename columns for readability
     display_df = display_df.rename(columns={
@@ -203,3 +218,66 @@ with st.expander("View daily data", expanded = True):
         use_container_width=True,
         hide_index=True,
     )
+
+
+CURATE_PATH = Path("data/curate")
+
+TOP_VOTERS_BY_DATE_PATH = CURATE_PATH / "top_voters_by_date.parquet"
+TOP_VOTERS_ALL_TIME_PATH = CURATE_PATH / "top_voters_all_time.parquet"
+
+@st.cache_data
+def load_top_voters(path):
+    df = pd.read_parquet(path)
+
+    if "Date" in df.columns:
+        df["Date"] = pd.to_datetime(df["Date"]).dt.strftime("%Y-%m-%d")
+
+    return df.head(20)
+
+
+# Daily top voters
+with st.expander("View daily top voters", expanded=True):
+    if TOP_VOTERS_BY_DATE_PATH.exists():
+        daily_voters = load_top_voters(
+            str(TOP_VOTERS_BY_DATE_PATH)
+        ).copy()
+
+        if "Date" in daily_voters.columns:
+            daily_voters = daily_voters.sort_values(
+                ["Date", "ranking"],
+                ascending=[False, True]
+            ).rename(columns={"out_bound_vote_amount":"vote amount"})[["Date","ranking","vote_amount"]]
+
+        daily_voters = format_numeric_columns(daily_voters)
+            
+        st.dataframe(
+            daily_voters,
+            use_container_width=True,
+            hide_index=True,
+        )
+    else:
+        st.warning("Daily top voters data not found.")
+
+# All-time top voters
+with st.expander("View all-time top voters", expanded=True):
+    if TOP_VOTERS_ALL_TIME_PATH.exists():
+        all_time_voters = load_top_voters(
+            str(TOP_VOTERS_ALL_TIME_PATH)
+        ).copy()
+
+        if "Date" in all_time_voters.columns:
+            all_time_voters = all_time_voters.sort_values(
+                ["Date", "ranking_by_vote"],
+                ascending=[False, True]
+            ).rename(columns={"ranking_by_vote":"ranking",
+                              "accum_vote":"vote amount"})[["Date","ranking","vote_amount"]]
+
+        all_time_voters = format_numeric_columns(all_time_voters)
+
+        st.dataframe(
+            all_time_voters,
+            use_container_width=True,
+            hide_index=True,
+        )
+    else:
+        st.warning("All-time top voters data not found.")

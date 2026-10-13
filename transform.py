@@ -8,8 +8,10 @@ import pandas as pd
 PROJECT_DIR = Path(__file__).resolve().parent
 DATA_DIR = PROJECT_DIR / "data"
 RAW_PATH = DATA_DIR / "curate" / "GE6_txn_processed.parquet"
-PROCESSED_PATH = DATA_DIR / "curate" / "daily_balance_sheet.parquet"
-PERSIST_PATH = DATA_DIR / "persist" / "daily_overview.parquet"
+DAILY_BALANCE_SHEET_PATH = DATA_DIR / "curate" / "daily_balance_sheet.parquet"
+DAILY_OVERVIEW_PATH = DATA_DIR / "persist" / "daily_overview.parquet"
+TOP_VOTERS_BY_DATE_PATH = DATA_DIR / "curate" / "top_voters_by_date.parquet"
+TOP_VOTERS_ALL_TIME_PATH = DATA_DIR / "curate" / "top_voters_all_time.parquet"
 
 SOURCE_ACC = "0x88dE4a0c186efe75fd359F4EBf36E5C4144E1255"
 VOTE_ACC = "0x86a1F49e1b1Cbd69971e99B66123264c75Ac2c8F"
@@ -54,6 +56,49 @@ def create_daily_balance_sheet(df_transfers: pd.DataFrame) -> pd.DataFrame:
 
     return daily_balance_sheet
 
+def create_top_voters_by_date(daily_balance_sheet):
+
+    top_voters_by_date = daily_balance_sheet.sort_values(by=['Date','out_bound_vote_amount'],ascending=[False,False])[['Date','From','out_bound_vote_amount']].copy()
+    top_voters_by_date['ranking'] = top_voters_by_date.groupby('Date')['out_bound_vote_amount'].rank(method='dense',ascending=False).astype(int) 
+    #top_voters_by_date.loc[(top_voters_by_date['ranking'] <= 20) & (top_voters_by_date['out_bound_vote_amount'] > 0)].set_index('Date')[['ranking','From','out_bound_vote_amount']]
+
+    return top_voters_by_date
+
+def create_top_voters_all_time(daily_balance_sheet,ex):
+
+    date_df = pd.DataFrame(daily_balance_sheet['Date'].unique().tolist(),columns=['Date'])
+    wallet_df = daily_balance_sheet.loc[~daily_balance_sheet['From'].isin(ex)]['From'].drop_duplicates()
+    top_voters_all_time = date_df.merge(wallet_df,how='cross')
+    top_voters_all_time = top_voters_all_time.sort_values(by=['From','Date']).merge(daily_balance_sheet[['Date','From','out_bound_vote_amount','accum_in_bound_amount','accum_out_bound_amount','balance']],on=['Date','From'],how='left')
+    top_voters_all_time['out_bound_vote_amount'] = top_voters_all_time['out_bound_vote_amount'].fillna(0)
+
+    cols_to_ffill = [
+        'accum_in_bound_amount',
+        'accum_out_bound_amount',
+        'balance'
+    ]
+
+    top_voters_all_time[cols_to_ffill] = (
+        top_voters_all_time
+        .groupby('From')[cols_to_ffill]
+        .ffill().fillna(0)
+    )
+
+    top_voters_all_time = top_voters_all_time.sort_values(by='Date')
+
+    top_voters_all_time['accum_vote'] = top_voters_all_time.groupby('From')['out_bound_vote_amount'].transform('cumsum')
+    top_voters_all_time['potential_vote_amount'] = top_voters_all_time['balance']+top_voters_all_time['accum_vote']
+    top_voters_all_time = top_voters_all_time.sort_values(by=['Date','accum_vote'],ascending=[True,False])
+    top_voters_all_time['ranking_by_vote'] = top_voters_all_time.groupby('Date')['accum_vote'].rank(method='dense',ascending=False).astype(int)
+    top_voters_all_time['ranking_by_potential_vote'] = top_voters_all_time.groupby('Date')['potential_vote_amount'].rank(method='dense',ascending=False).astype(int)
+    previous_date_ranking_by_vote = top_voters_all_time[['Date','From','ranking_by_vote']].copy().rename(columns={'ranking_by_vote':'previous_date_raking',
+                                                                                                })
+    previous_date_ranking_by_vote['Date'] = previous_date_ranking_by_vote['Date'] + pd.Timedelta(days=1)
+
+    top_voters_all_time = top_voters_all_time.merge(previous_date_ranking_by_vote,on = ['Date','From'])
+    top_voters_all_time = top_voters_all_time.sort_values(by=['Date','ranking_by_vote'],ascending=[False,True])
+
+    return top_voters_all_time
 
 def create_daily_overview(daily_balance_sheet: pd.DataFrame, official_accs: list, ex: list) -> pd.DataFrame:
 
@@ -71,23 +116,22 @@ def create_daily_overview(daily_balance_sheet: pd.DataFrame, official_accs: list
     return daily_overview
 
 
+def save_to_parquet(df,df_name,path):
+    temp_path = path.with_suffix(".tmp.parquet")
+    df.to_parquet(temp_path, index=False)
+    temp_path.replace(path)
+
+    print(f"{df_name}: {len(df):,} rows")
+    print(f"{df_name} saved to: {path}")
+    print(f"{df_name} saved successfully.")
+    print("#########################################")
+
 
 def main() -> None:
     print("Starting creating daily_balance_sheet...")
 
     df_transfers = pd.read_parquet(RAW_PATH)
     print(f"Processed transfers: {len(df_transfers):,} rows")
-
-    daily_balance_sheet = create_daily_balance_sheet(df_transfers)
-
-    temp_path = PROCESSED_PATH.with_suffix(".tmp.parquet")
-    daily_balance_sheet.to_parquet(temp_path, index=False)
-    temp_path.replace(PROCESSED_PATH)
-
-    print(f"daily balance sheet: {len(daily_balance_sheet):,} rows")
-    print(f"daily balance sheet saved to: {PROCESSED_PATH}")
-    print("daily_balance_sheet saved successfully.")
-    print("#########################################")
 
     official_accs = (
     df_transfers.loc[
@@ -100,16 +144,23 @@ def main() -> None:
     )
     ex = official_accs + [SOURCE_ACC, VOTE_ACC, MINT]
 
-    daily_overview = create_daily_overview(daily_balance_sheet,official_accs,ex)
 
-    temp_path = PERSIST_PATH.with_suffix(".tmp.parquet")
-    daily_overview.to_parquet(temp_path, index=False)
-    temp_path.replace(PERSIST_PATH)
 
-    print(f"daily overview: {len(daily_overview):,} rows")
-    print(f"daily balance sheet saved to: {PERSIST_PATH}")
-    print("daily_overview saved successfully.")
-    print("#########################################")
+    daily_balance_sheet = create_daily_balance_sheet(df_transfers)
+    save_to_parquet(daily_balance_sheet,'daily balance sheet',DAILY_BALANCE_SHEET_PATH)
+    del df_transfers
+
+    df = create_top_voters_by_date(daily_balance_sheet)
+    save_to_parquet(df,'top voters by date',TOP_VOTERS_BY_DATE_PATH)
+
+    df = create_top_voters_all_time(daily_balance_sheet,ex)
+    save_to_parquet(df,'top voters all time', TOP_VOTERS_ALL_TIME_PATH)
+
+    df = create_daily_overview(daily_balance_sheet,official_accs,ex)
+    save_to_parquet(df,'daily overview',DAILY_OVERVIEW_PATH)
+
+
+
 
 
 if __name__ == "__main__":
