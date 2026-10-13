@@ -248,10 +248,10 @@ with st.expander("View daily top voters", expanded=True):
                 ascending=[False, True]
             ).rename(columns={"ranking":"Ranking",
                               "From":"Wallet Address",
-                              "out_bound_vote_amount":"Vote amount"})[["Date",
+                              "out_bound_vote_amount":"Vote Amount (Sum By Date)"})[["Date",
                                                                        "Wallet Address",
                                                                        "Ranking",
-                                                                       "Vote amount"]]
+                                                                       "Vote Amount (Sum By Date)"]]
 
         daily_voters = format_numeric_columns(daily_voters)
             
@@ -276,10 +276,12 @@ with st.expander("View all-time top voters", expanded=True):
                 ascending=[False, True]
             ).rename(columns={"ranking_by_vote":"Ranking",
                               "From": "Wallet Address",
-                              "accum_vote":"Vote amount"})[["Date",
-                                                            "Wallet Address",
+                              "accum_vote":"Vote Amount (Cumulative)",
+                              "previous_date_ranking": "Previous Date Ranking"})[["Date",
                                                             "Ranking",
-                                                            "Vote amount"]]
+                                                            "Previous Date Ranking",
+                                                            "Wallet Address",
+                                                            "Vote Amount (Cumulative)"]]
 
         all_time_voters = format_numeric_columns(all_time_voters)
 
