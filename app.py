@@ -5,6 +5,8 @@ import plotly.express as px
 from pathlib import Path
 import json
 
+
+
 def format_numeric_columns(df, exclude=None):
     exclude = exclude or ["Date", "From"]
 
@@ -236,59 +238,150 @@ def load_top_voters(path):
 
 
 # Daily top voters
-with st.expander("View daily top voters", expanded=True):
-    if TOP_VOTERS_BY_DATE_PATH.exists():
-        daily_voters = load_top_voters(
-            str(TOP_VOTERS_BY_DATE_PATH)
-        ).copy()
 
-        if "Date" in daily_voters.columns:
+# with st.expander("View daily top voters", expanded=True):
+#     if TOP_VOTERS_BY_DATE_PATH.exists():
+#         daily_voters = load_top_voters(
+#             str(TOP_VOTERS_BY_DATE_PATH)
+#         ).copy()
+
+#         if "Date" in daily_voters.columns:
+#             daily_voters = daily_voters.sort_values(
+#                 ["Date", "ranking"],
+#                 ascending=[False, True]
+#             ).rename(columns={"ranking":"Ranking",
+#                               "From":"Wallet Address",
+#                               "out_bound_vote_amount":"Vote Amount (Sum By Date)"})[["Date",
+#                                                                        "Ranking",
+#                                                                        "Wallet Address",
+#                                                                        "Vote Amount (Sum By Date)"]]
+
+#         daily_voters = format_numeric_columns(daily_voters)
+            
+#         st.dataframe(
+#             daily_voters,
+#             use_container_width=True,
+#             hide_index=True,
+#         )
+#     else:
+#         st.warning("Daily top voters data not found.")
+
+# # All-time top voters
+# with st.expander("View all-time top voters", expanded=True):
+#     if TOP_VOTERS_ALL_TIME_PATH.exists():
+#         all_time_voters = load_top_voters(
+#             str(TOP_VOTERS_ALL_TIME_PATH)
+#         ).copy()
+
+#         if "Date" in all_time_voters.columns:
+#             all_time_voters = all_time_voters.sort_values(
+#                 ["Date", "ranking_by_vote"],
+#                 ascending=[False, True]
+#             ).rename(columns={"ranking_by_vote":"Ranking",
+#                               "From": "Wallet Address",
+#                               "accum_vote":"Vote Amount (Cumulative)",
+#                               "previous_date_ranking": "Previous Date Ranking"})[["Date",
+#                                                             "Ranking",
+#                                                             "Previous Date Ranking",
+#                                                             "Wallet Address",
+#                                                             "Vote Amount (Cumulative)"]]
+
+#         all_time_voters = format_numeric_columns(all_time_voters)
+
+#         st.dataframe(
+#             all_time_voters,
+#             use_container_width=True,
+#             hide_index=True,
+#         )
+#     else:
+#         st.warning("All-time top voters data not found.")
+
+
+
+# Leaderboard tab
+tab_overview, tab_leaderboard = st.tabs([
+    "📊 Overview",
+    "🏆 Leaderboard",
+])
+
+# Keep the daily overview table in the Overview tab
+# (Move the existing "View daily overview data" expander
+# into this block if you want it inside the Overview tab.)
+
+with tab_leaderboard:
+    daily_tab, all_time_tab = st.tabs([
+        "Daily Top Voters",
+        "All-time Top Voters",
+    ])
+
+    # Daily top voters
+    with daily_tab:
+        if TOP_VOTERS_BY_DATE_PATH.exists():
+            daily_voters = load_top_voters(
+                str(TOP_VOTERS_BY_DATE_PATH)
+            ).copy()
+
             daily_voters = daily_voters.sort_values(
                 ["Date", "ranking"],
                 ascending=[False, True]
-            ).rename(columns={"ranking":"Ranking",
-                              "From":"Wallet Address",
-                              "out_bound_vote_amount":"Vote Amount (Sum By Date)"})[["Date",
-                                                                       "Ranking",
-                                                                       "Wallet Address",
-                                                                       "Vote Amount (Sum By Date)"]]
+            )
 
-        daily_voters = format_numeric_columns(daily_voters)
-            
-        st.dataframe(
-            daily_voters,
-            use_container_width=True,
-            hide_index=True,
-        )
-    else:
-        st.warning("Daily top voters data not found.")
+            daily_voters = daily_voters.rename(columns={
+                "ranking": "Ranking",
+                "From": "Wallet Address",
+                "out_bound_vote_amount": "Vote Amount (Sum By Date)",
+            })
 
-# All-time top voters
-with st.expander("View all-time top voters", expanded=True):
-    if TOP_VOTERS_ALL_TIME_PATH.exists():
-        all_time_voters = load_top_voters(
-            str(TOP_VOTERS_ALL_TIME_PATH)
-        ).copy()
+            display_cols = [
+                "Date",
+                "Ranking",
+                "Wallet Address",
+                "Vote Amount (Sum By Date)",
+            ]
+            daily_voters = daily_voters[display_cols]
+            daily_voters = format_numeric_columns(daily_voters)
 
-        if "Date" in all_time_voters.columns:
+            st.dataframe(
+                daily_voters,
+                use_container_width=True,
+                hide_index=True,
+            )
+        else:
+            st.warning("Daily top voters data not found.")
+
+    # All-time top voters
+    with all_time_tab:
+        if TOP_VOTERS_ALL_TIME_PATH.exists():
+            all_time_voters = load_top_voters(
+                str(TOP_VOTERS_ALL_TIME_PATH)
+            ).copy()
+
             all_time_voters = all_time_voters.sort_values(
                 ["Date", "ranking_by_vote"],
                 ascending=[False, True]
-            ).rename(columns={"ranking_by_vote":"Ranking",
-                              "From": "Wallet Address",
-                              "accum_vote":"Vote Amount (Cumulative)",
-                              "previous_date_ranking": "Previous Date Ranking"})[["Date",
-                                                            "Ranking",
-                                                            "Previous Date Ranking",
-                                                            "Wallet Address",
-                                                            "Vote Amount (Cumulative)"]]
+            )
 
-        all_time_voters = format_numeric_columns(all_time_voters)
+            all_time_voters = all_time_voters.rename(columns={
+                "ranking_by_vote": "Ranking",
+                "From": "Wallet Address",
+                "accum_vote": "Vote Amount (Cumulative)",
+                "previous_date_ranking": "Previous Date Ranking",
+            })
 
-        st.dataframe(
-            all_time_voters,
-            use_container_width=True,
-            hide_index=True,
-        )
-    else:
-        st.warning("All-time top voters data not found.")
+            display_cols = [
+                "Date",
+                "Ranking",
+                "Previous Date Ranking",
+                "Wallet Address",
+                "Vote Amount (Cumulative)",
+            ]
+            all_time_voters = all_time_voters[display_cols]
+            all_time_voters = format_numeric_columns(all_time_voters)
+
+            st.dataframe(
+                all_time_voters,
+                use_container_width=True,
+                hide_index=True,
+            )
+        else:
+            st.warning("All-time top voters data not found.")
