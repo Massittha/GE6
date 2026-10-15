@@ -16,6 +16,16 @@ TOP_VOTERS_ALL_TIME_PATH = DATA_DIR / "curate" / "top_voters_all_time.parquet"
 SOURCE_ACC = "0x88dE4a0c186efe75fd359F4EBf36E5C4144E1255"
 VOTE_ACC = "0x86a1F49e1b1Cbd69971e99B66123264c75Ac2c8F"
 MINT = "0x0000000000000000000000000000000000000000"
+OFFICIAL_ACCS = ['0x4924829CBBFB3B7DE7469098A7867d43a5cd248a',
+       '0x90a1e95D305df30B0e00f63CC3b9Ff9BFEfA9109',
+       '0x4BFE835bfC51e3B0fFDdC89951d0Eab7Ff175f0F',
+       '0xa66e830BC83c98A78AC20D1b705E8abE1C768195',
+       '0x59CA9C4D13D65c03bc3bdB227D3e745cCCCc50cc',
+       '0x8E6D24B7DE8F178027e16D9c8F1C8D73eDd2E5a4',
+       '0xd754a0bFF84998306f306DA12a3eEedbDD8abf41',
+       '0x563A62883fd50d8463c1621528fCA9D54ca7F8C9',
+       '0xf1c567e495AD13d48EB684a7BFbE33e3aE566AbB',
+       '0x7A6446b20Dcae3aed0E6a1D21Ba5d6787a341148']
 
 def create_daily_balance_sheet(df_transfers: pd.DataFrame) -> pd.DataFrame:
     daily_in_bound_df = df_transfers.groupby(["To","Date"]).agg(in_bound_amount = ("Value","sum"),
@@ -133,16 +143,16 @@ def main() -> None:
     df_transfers = pd.read_parquet(RAW_PATH)
     print(f"Processed transfers: {len(df_transfers):,} rows")
 
-    official_accs = (
-    df_transfers.loc[
-        df_transfers['From'].eq(SOURCE_ACC),
-        'To'
-    ]
-    .dropna()
-    .unique()
-    .tolist()
-    )
-    ex = official_accs + [SOURCE_ACC, VOTE_ACC, MINT]
+    # official_accs = (
+    # df_transfers.loc[
+    #     df_transfers['From'].eq(SOURCE_ACC),
+    #     'To'
+    # ]
+    # .dropna()
+    # .unique()
+    # .tolist()
+    # )
+    ex = OFFICIAL_ACCS + [SOURCE_ACC, VOTE_ACC, MINT]
 
 
 
@@ -156,7 +166,7 @@ def main() -> None:
     df = create_top_voters_all_time(daily_balance_sheet,ex)
     save_to_parquet(df,'top voters all time', TOP_VOTERS_ALL_TIME_PATH)
 
-    df = create_daily_overview(daily_balance_sheet,official_accs,ex)
+    df = create_daily_overview(daily_balance_sheet,OFFICIAL_ACCS,ex)
     save_to_parquet(df,'daily overview',DAILY_OVERVIEW_PATH)
 
 
