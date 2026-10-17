@@ -27,7 +27,10 @@ OFFICIAL_ACCS = ['0x4924829CBBFB3B7DE7469098A7867d43a5cd248a',
        '0xf1c567e495AD13d48EB684a7BFbE33e3aE566AbB',
        '0x7A6446b20Dcae3aed0E6a1D21Ba5d6787a341148']
 
-def create_daily_balance_sheet(df_transfers: pd.DataFrame) -> pd.DataFrame:
+def create_daily_balance_sheet(df_transfers: pd.DataFrame,
+                               official_accs: list,
+                               mint: str,
+                               source: str) -> pd.DataFrame:
     daily_in_bound_df = df_transfers.groupby(["To","Date"]).agg(in_bound_amount = ("Value","sum"),
                                                 in_bound_txns = ("Tx Hash","count"),
                                                 in_bound_vote_amount = ("vote_amount","sum"),
@@ -62,6 +65,17 @@ def create_daily_balance_sheet(df_transfers: pd.DataFrame) -> pd.DataFrame:
     daily_balance_sheet["accum_out_bound_amount"] = daily_balance_sheet.groupby(["From"])["out_bound_amount"].cumsum()
     daily_balance_sheet["balance"] = daily_balance_sheet["accum_in_bound_amount"]-daily_balance_sheet["accum_out_bound_amount"]
     daily_balance_sheet["balance_change_since_last_active_date"] = daily_balance_sheet.groupby(["From"])["balance"].diff().fillna(daily_balance_sheet["balance"])
+
+    daily_balance_sheet['is_official'] = daily_balance_sheet['From'].isin(official_accs).astype('int')
+    daily_balance_sheet['is_mint'] = daily_balance_sheet['From'].isin([mint]).astype('int')
+    daily_balance_sheet['is_intermediate'] = daily_balance_sheet['From'].isin([source]).astype('int')
+    daily_balance_sheet['in_bound_official'] = (daily_balance_sheet['is_official'] * daily_balance_sheet['in_bound_amount'])
+
+    daily_balance_sheet['sold_by_official'] = (daily_balance_sheet['out_bound_amount']
+                                                                                    * daily_balance_sheet['is_official'])
+    daily_balance_sheet['sold_by_intermediate'] = (daily_balance_sheet['out_bound_amount']
+                                                                                    * daily_balance_sheet['is_intermediate']) - daily_balance_sheet['in_bound_official']
+    daily_balance_sheet['total_sold'] = daily_balance_sheet['sold_by_official']+daily_balance_sheet['sold_by_intermediate']
 
 
     return daily_balance_sheet
@@ -112,15 +126,14 @@ def create_top_voters_all_time(daily_balance_sheet,ex):
 
 def create_daily_overview(daily_balance_sheet: pd.DataFrame, official_accs: list, ex: list) -> pd.DataFrame:
 
-    daily_token_sold = daily_balance_sheet.loc[daily_balance_sheet["From"].isin(official_accs)].groupby("Date")["out_bound_amount"].sum().sort_index().reset_index()
-    daily_token_sold["token_in_circulation"] = daily_token_sold["out_bound_amount"].cumsum()
-    
-    daily_token_spent = daily_balance_sheet.loc[~daily_balance_sheet["From"].isin(ex)].groupby("Date").agg(vote_amount =("out_bound_vote_amount","sum")).sort_index().reset_index()
-    daily_token_spent["accum_vote_amount"] = daily_token_spent["vote_amount"].cumsum()
+    daily_token_sold = daily_balance_sheet.groupby('Date').agg(total_sold=('total_sold','sum')).reset_index().sort_values(by='Date')
+    daily_token_sold['token_in_circulation'] = daily_token_sold['total_sold'].cumsum()
 
-    daily_overview = pd.merge(left=daily_token_sold,right=daily_token_spent,how='left',on='Date')
+    daily_token_spent = daily_balance_sheet.groupby('Date').agg(total_vote = ('out_bound_vote_amount','sum')).reset_index().sort_values(by='Date')
+    daily_token_spent['accum_vote_amount'] = daily_token_spent['total_vote'].cumsum()
+
+    daily_overview = daily_token_sold.merge(daily_token_spent,on='Date',how='outer')
     daily_overview['token_unspent'] = daily_overview['token_in_circulation'] - daily_overview['accum_vote_amount']
-
     daily_overview = daily_overview[['Date','token_in_circulation','accum_vote_amount','token_unspent']]
 
     return daily_overview
@@ -156,7 +169,7 @@ def main() -> None:
 
 
 
-    daily_balance_sheet = create_daily_balance_sheet(df_transfers)
+    daily_balance_sheet = create_daily_balance_sheet(df_transfers,OFFICIAL_ACCS,MINT,SOURCE_ACC)
     save_to_parquet(daily_balance_sheet,'daily balance sheet',DAILY_BALANCE_SHEET_PATH)
     del df_transfers
 
